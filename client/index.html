@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pigment</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Pigment</h1>
+      <p>Extract acrylic paint recipes from any image</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="input-section" id="inputSection">
+      <div class="drop-zone" id="dropZone">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <p>Drop an image here</p>
+        <span class="or">or</span>
+        <button class="btn" id="uploadBtn">Choose File</button>
+      </div>
+
+      <div class="url-row">
+        <input type="text" id="urlInput" placeholder="Paste an image URL (JPEG, PNG, WEBP, GIF)" />
+        <button class="btn btn-primary" id="urlBtn">Load</button>
+      </div>
+
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+    </section>
+
+    <canvas id="originalCanvas" hidden></canvas>
+    <div class="status" id="status" hidden></div>
+
+    <section class="results" id="results" hidden>
+
+      <div class="canvas-area">
+        <div class="canvas-wrap-header">
+          <h3>Colors <span id="colorCount"></span></h3>
+          <div class="slider-row">
+            <span>4</span>
+            <input type="range" id="colorSlider" min="4" max="256" value="128" step="4">
+            <span>256</span>
+          </div>
+          <button class="btn btn-toggle" id="outlineBtn">Paint by Numbers</button>
+        </div>
+        <div class="canvas-container">
+          <canvas id="quantizedCanvas"></canvas>
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+        <div class="shopping-list" id="shoppingList"></div>
+      </div>
+
+      <div class="palette-controls">
+        <span class="palette-ctrl-label">Consolidate similar mixes</span>
+        <div class="slider-row">
+          <span>off</span>
+          <input type="range" id="consolidateSlider" min="0" max="25" value="5" step="1">
+          <span>max</span>
+        </div>
+      </div>
+
+      <div class="palette-columns" id="swatches"></div>
+
+      <button class="btn reset-btn" id="resetBtn">Load Another Image</button>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
