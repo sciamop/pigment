@@ -4,6 +4,8 @@ import { PAINTS } from './lib/paints.js'
 
 const MAX_DIM = 1400
 
+const PAINT_RGB = new Map(PAINTS.map(p => [p.name, p.rgb]))
+
 const SHORT_NAME = {
   'Titanium White':             'White',
   'Ivory Black':                'Black',
@@ -46,6 +48,7 @@ let cachedAggregated   = null
 let colorMasks         = null
 let labelRegions       = null
 let hexToPaintLabel    = new Map()
+let hexToMatch         = new Map()
 let debounceTimer      = null
 
 // --- Event listeners ---
@@ -111,6 +114,11 @@ overlayCanvas.addEventListener('mousemove', e => {
   swatchesEl.querySelectorAll('.swatch').forEach(el =>
     el.classList.toggle('highlighted', el.dataset.hexes.split(',').includes(hex))
   )
+
+  // Show tooltip
+  const match = hexToMatch.get(hex)
+  if (match) showTooltip(e.clientX, e.clientY, hex, match)
+  else hideTooltip()
 })
 
 overlayCanvas.addEventListener('mouseleave', () => {
@@ -118,6 +126,7 @@ overlayCanvas.addEventListener('mouseleave', () => {
   ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
   drawLabels(ctx, null)
   swatchesEl.querySelectorAll('.swatch').forEach(el => el.classList.remove('highlighted'))
+  hideTooltip()
 })
 
 // --- Handlers ---
@@ -167,6 +176,7 @@ function reprocess(numColors) {
         const label = match.mix.map(m => `${String(m.ratio).padStart(2, '0')} ${shortName(m.name)}`).join('\n')
         return [hex, label]
       }))
+      hexToMatch = new Map(matches.map(({ hex, match }) => [hex, match]))
 
       cachedAggregated = aggregateByRecipe(matches, Infinity)
       setupOverlay(qData, palette)
@@ -430,7 +440,11 @@ function renderShoppingList(matches) {
 
 function mixLines(mix) {
   return [...mix].sort((a, b) => b.ratio - a.ratio)
-    .map(m => `<div class="mix-line"><span class="mix-ratio">${String(m.ratio).padStart(2,'0')}</span><span class="mix-name">${m.name}</span></div>`)
+    .map(m => {
+      const rgb = PAINT_RGB.get(m.name)
+      const swatch = rgb ? `<span class="mix-paint-swatch" style="background:rgb(${rgb[0]},${rgb[1]},${rgb[2]})"></span>` : ''
+      return `<div class="mix-line"><span class="mix-ratio">${String(m.ratio).padStart(2,'0')}</span>${swatch}<span class="mix-name">${m.name}</span></div>`
+    })
     .join('')
 }
 
@@ -497,49 +511,34 @@ function renderSwatches(aggregated) {
 
 // --- UI helpers ---
 
-// Modal setup
-const formulaModal = document.createElement('div')
-formulaModal.id = 'formulaModal'
-formulaModal.style.position = 'fixed'
-formulaModal.style.top = '0'
-formulaModal.style.left = '0'
-formulaModal.style.width = '100vw'
-formulaModal.style.height = '100vh'
-formulaModal.style.backgroundColor = 'rgba(0,0,0,0.5)'
-formulaModal.style.display = 'none'
-formulaModal.style.justifyContent = 'center'
-formulaModal.style.alignItems = 'center'
-formulaModal.style.zIndex = '1000'
+// Tooltip
+const colorTooltip = document.getElementById('colorTooltip')
 
-document.body.appendChild(formulaModal)
+function showTooltip(cx, cy, hex, match) {
+  colorTooltip.innerHTML =
+    `<div class="tooltip-header">
+      <div class="tooltip-swatch" style="background:${hex}"></div>
+      <span class="tooltip-hex">${hex.toUpperCase()}</span>
+    </div>` + mixLines(match.mix)
+  colorTooltip.classList.add('visible')
+  positionTooltip(cx, cy)
+}
 
-const modalContent = document.createElement('div')
-modalContent.style.backgroundColor = '#fff'
-modalContent.style.padding = '20px'
-modalContent.style.borderRadius = '8px'
-modalContent.style.maxWidth = '600px'
-modalContent.style.width = '90%'
-modalContent.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'
+function positionTooltip(cx, cy) {
+  const offset = 14
+  const tw = colorTooltip.offsetWidth
+  const th = colorTooltip.offsetHeight
+  let left = cx + offset
+  let top  = cy + offset
+  if (left + tw > window.innerWidth  - 8) left = cx - tw - offset
+  if (top  + th > window.innerHeight - 8) top  = cy - th - offset
+  colorTooltip.style.left = left + 'px'
+  colorTooltip.style.top  = top  + 'px'
+}
 
-const modalText = document.createElement('p')
-modalText.id = 'formulaText'
-modalText.style.margin = '0'
-modalText.style.fontSize = '14px'
-modalText.style.lineHeight = '1.5'
-
-const closeBtn = document.createElement('button')
-closeBtn.textContent = '×'
-closeBtn.style.position = 'absolute'
-closeBtn.style.top = '10px'
-closeBtn.style.right = '10px'
-closeBtn.style.border = 'none'
-closeBtn.style.backgroundColor = 'transparent'
-closeBtn.style.fontSize = '20px'
-closeBtn.style.cursor = 'pointer'
-
-formulaModal.appendChild(closeBtn)
-formulaModal.appendChild(modalContent)
-formulaModal.appendChild(modalText)
+function hideTooltip() {
+  colorTooltip.classList.remove('visible')
+}
 
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg
@@ -558,6 +557,8 @@ function reset() {
   outlineMode = false
   outlineBtn.classList.remove('active')
   hexToPaintLabel = new Map()
+  hexToMatch = new Map()
+  hideTooltip()
   resultsEl.hidden = true
   inputSection.hidden = false
   fileInput.value = urlInput.value = ''
