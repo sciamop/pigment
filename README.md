@@ -1,6 +1,6 @@
 # Pigment
 
-**[pigment.whistlehog.xyz](https://pigment.whistlehog.xyz)**
+**[https://pigment.whistlehog.xyz](https://pigment.whistlehog.xyz)**
 
 Extract acrylic paint recipes from any image. Upload a photo and Pigment will quantize its colors, match each region to a mix of real acrylic paints, and give you a full shopping list.
 
