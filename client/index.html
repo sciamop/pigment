@@ -9,8 +9,10 @@
 <body>
   <header>
     <div class="header-inner">
-      <h1>Pigment</h1>
-      <p>Extract acrylic paint recipes from any image</p>
+      <svg width="22" height="22" viewBox="0 0 100 100" fill="var(--accent)" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 5 C30 5 10 22 12 42 C14 55 8 60 10 72 C13 85 28 96 45 95 C55 94 62 88 68 80 C76 68 90 65 88 48 C86 30 70 5 50 5 Z"/>
+      </svg>
+      <h1>PIGMENT</h1>
     </div>
   </header>
 
@@ -36,25 +38,49 @@
     </section>
 
     <canvas id="originalCanvas" hidden></canvas>
-    <div class="status" id="status" hidden></div>
 
     <section class="results" id="results" hidden>
 
       <div class="canvas-area">
         <div class="canvas-wrap-header">
-          <h3>Colors <span id="colorCount"></span></h3>
           <div class="slider-row">
+            <span class="slider-label">Colors <span id="colorCount"></span></span>
             <span>4</span>
-            <input type="range" id="colorSlider" min="4" max="256" value="128" step="4">
+            <input type="range" id="colorSlider" min="4" max="256" value="64" step="4" list="colorTicks">
             <span>256</span>
+            <input type="number" id="colorInput" min="4" max="256" value="64" step="4">
           </div>
-          <button class="btn btn-toggle" id="outlineBtn">Paint by Numbers</button>
+          <datalist id="colorTicks">
+            <option value="4"></option><option value="8"></option><option value="12"></option><option value="16"></option>
+            <option value="20"></option><option value="24"></option><option value="28"></option><option value="32"></option>
+            <option value="36"></option><option value="40"></option><option value="44"></option><option value="48"></option>
+            <option value="52"></option><option value="56"></option><option value="60"></option><option value="64"></option>
+            <option value="68"></option><option value="72"></option><option value="76"></option><option value="80"></option>
+            <option value="84"></option><option value="88"></option><option value="92"></option><option value="96"></option>
+            <option value="100"></option><option value="104"></option><option value="108"></option><option value="112"></option>
+            <option value="116"></option><option value="120"></option><option value="124"></option><option value="128"></option>
+            <option value="132"></option><option value="136"></option><option value="140"></option><option value="144"></option>
+            <option value="148"></option><option value="152"></option><option value="156"></option><option value="160"></option>
+            <option value="164"></option><option value="168"></option><option value="172"></option><option value="176"></option>
+            <option value="180"></option><option value="184"></option><option value="188"></option><option value="192"></option>
+            <option value="196"></option><option value="200"></option><option value="204"></option><option value="208"></option>
+            <option value="212"></option><option value="216"></option><option value="220"></option><option value="224"></option>
+            <option value="228"></option><option value="232"></option><option value="236"></option><option value="240"></option>
+            <option value="244"></option><option value="248"></option><option value="252"></option><option value="256"></option>
+          </datalist>
+          <div class="canvas-header-btns">
+            <button class="btn btn-toggle" id="outlineBtn">Paint by Numbers</button>
+            <button class="btn btn-toggle active" id="labelsBtn">Labels</button>
+          </div>
         </div>
         <div class="canvas-container">
           <canvas id="quantizedCanvas"></canvas>
           <canvas id="overlayCanvas"></canvas>
+          <div id="labelOverlay" class="label-overlay"></div>
         </div>
-        <div class="shopping-list" id="shoppingList"></div>
+        <div id="attribution" class="attribution" hidden>
+          Ivan Mischo (1934–1992) &mdash; <em>Abstract Composition</em>, mixed media on paper, 23&thinsp;&times;&thinsp;31 in.
+        </div>
       </div>
 
       <div class="palette-controls">
@@ -64,15 +90,24 @@
           <input type="range" id="consolidateSlider" min="0" max="25" value="5" step="1">
           <span>max</span>
         </div>
+        <div class="palette-expand-btns">
+          <button class="btn btn-toggle" id="expandAllBtn">Expand All</button>
+          <button class="btn btn-toggle" id="collapseAllBtn">Collapse All</button>
+          <button class="btn btn-toggle btn-primary" id="exportBtn" style="margin-left:12px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>Export PDF
+          </button>
+        </div>
       </div>
 
       <div class="palette-columns" id="swatches"></div>
 
-      <button class="btn reset-btn" id="resetBtn">Load Another Image</button>
+      <div class="shopping-list" id="shoppingList"></div>
+
     </section>
   </main>
 
   <div id="colorTooltip" class="color-tooltip"></div>
+  <div id="status" class="toast" hidden></div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

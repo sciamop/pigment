@@ -20,6 +20,20 @@ const SHORT_NAME = {
 }
 const shortName = n => SHORT_NAME[n] || n
 
+const ABBREV = {
+  'Titanium White':             'WH',
+  'Ivory Black':                'BK',
+  'Burnt Umber':                'BNTU',
+  'Raw Umber':                  'RAWU',
+  'Yellow Ochre':               'YOC',
+  'Cadmium Yellow Light':       'CADY',
+  'Cadmium Red':                'CADR',
+  'Alizarin Crimson Permanent': 'AZC',
+  'Ultramarine Blue':           'UMB',
+  'Phthalo Blue (Green Shade)': 'PHB',
+}
+const abbrev = n => ABBREV[n] || n.slice(0, 4).toUpperCase()
+
 // Elements
 const dropZone        = document.getElementById('dropZone')
 const uploadBtn       = document.getElementById('uploadBtn')
@@ -32,15 +46,27 @@ const inputSection    = document.getElementById('inputSection')
 const originalCanvas  = document.getElementById('originalCanvas')
 const quantizedCanvas = document.getElementById('quantizedCanvas')
 const overlayCanvas   = document.getElementById('overlayCanvas')
+const labelOverlay    = document.getElementById('labelOverlay')
+const attributionEl   = document.getElementById('attribution')
 const swatchesEl      = document.getElementById('swatches')
 const colorCountEl    = document.getElementById('colorCount')
-const resetBtn        = document.getElementById('resetBtn')
+const colorInputEl    = document.getElementById('colorInput')
 const colorSlider     = document.getElementById('colorSlider')
 const outlineBtn      = document.getElementById('outlineBtn')
+const labelsBtn       = document.getElementById('labelsBtn')
 const shoppingListEl      = document.getElementById('shoppingList')
 const consolidateSlider   = document.getElementById('consolidateSlider')
 
+shoppingListEl.addEventListener('change', e => {
+  if (e.target.matches('.shop-checkbox'))
+    e.target.closest('.shop-item').classList.toggle('checked', e.target.checked)
+})
+const expandAllBtn        = document.getElementById('expandAllBtn')
+const collapseAllBtn      = document.getElementById('collapseAllBtn')
+const exportBtn           = document.getElementById('exportBtn')
+
 let outlineMode = false
+let labelsVisible = true
 
 let cachedImageData    = null
 let cachedQuantizedData= null
@@ -67,8 +93,6 @@ dropZone.addEventListener('drop', e => {
   else { const t = e.dataTransfer.getData('text/plain'); if (t) handleUrl(t) }
 })
 
-resetBtn.addEventListener('click', reset)
-
 swatchesEl.addEventListener('click', e => {
   const header = e.target.closest('.group-header')
   if (header) header.closest('.paint-group').classList.toggle('collapsed')
@@ -80,14 +104,39 @@ outlineBtn.addEventListener('click', () => {
   if (cachedQuantizedData) drawQuantizedCanvas()
 })
 
+labelsBtn.addEventListener('click', () => {
+  labelsVisible = !labelsVisible
+  labelsBtn.classList.toggle('active', labelsVisible)
+  if (labelRegions) renderLabels()
+})
+
 consolidateSlider.addEventListener('input', () => {
   if (cachedAggregated) renderSwatches(consolidateMixes(cachedAggregated, Number(consolidateSlider.value)))
 })
 
+expandAllBtn.addEventListener('click', () =>
+  swatchesEl.querySelectorAll('.paint-group').forEach(g => g.classList.remove('collapsed'))
+)
+collapseAllBtn.addEventListener('click', () =>
+  swatchesEl.querySelectorAll('.paint-group').forEach(g => g.classList.add('collapsed'))
+)
+exportBtn.addEventListener('click', exportToPdf)
+
 colorSlider.addEventListener('input', () => {
+  colorInputEl.value = colorSlider.value
   if (!cachedImageData) return
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => reprocess(Number(colorSlider.value)), 150)
+})
+
+colorInputEl.addEventListener('change', () => {
+  let v = Math.round(Number(colorInputEl.value) / 4) * 4
+  v = Math.max(4, Math.min(256, v))
+  colorInputEl.value = v
+  colorSlider.value = v
+  if (!cachedImageData) return
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => reprocess(v), 150)
 })
 
 // Overlay mouse events
@@ -108,7 +157,7 @@ overlayCanvas.addEventListener('mousemove', e => {
   ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
   const mask = colorMasks.get(hex)
   if (mask) ctx.putImageData(mask, 0, 0)
-  drawLabels(ctx, hex)
+  setHoveredLabel(hex)
 
   // Highlight matching swatch
   swatchesEl.querySelectorAll('.swatch').forEach(el =>
@@ -124,20 +173,23 @@ overlayCanvas.addEventListener('mousemove', e => {
 overlayCanvas.addEventListener('mouseleave', () => {
   const ctx = overlayCanvas.getContext('2d')
   ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
-  drawLabels(ctx, null)
+  setHoveredLabel(null)
   swatchesEl.querySelectorAll('.swatch').forEach(el => el.classList.remove('highlighted'))
   hideTooltip()
 })
 
 // --- Handlers ---
 
+const DEFAULT_SRC = '/mischo.jpg'
+
 function handleFile(file) {
   const url = URL.createObjectURL(file)
-  loadAndProcess(url, () => URL.revokeObjectURL(url))
+  loadAndProcess(url, () => URL.revokeObjectURL(url), false)
 }
-function handleUrl(url) { loadAndProcess('/api/proxy?url=' + encodeURIComponent(url)) }
+function handleUrl(url) { loadAndProcess('/api/proxy?url=' + encodeURIComponent(url), null, false) }
 
-function loadAndProcess(src, onDone) {
+function loadAndProcess(src, onDone, isDefault = false) {
+  attributionEl.hidden = !isDefault
   setStatus('Loading image...')
   const img = new Image()
   img.crossOrigin = 'anonymous'
@@ -152,8 +204,8 @@ function processImage(img) {
   originalCanvas.height = height
   originalCanvas.getContext('2d').drawImage(img, 0, 0, width, height)
   cachedImageData = originalCanvas.getContext('2d').getImageData(0, 0, width, height)
-  colorSlider.value = 128
-  reprocess(128)
+  colorSlider.value = colorInputEl.value = 64
+  reprocess(64)
 }
 
 function reprocess(numColors) {
@@ -230,7 +282,7 @@ function setupOverlay(qImageData, palette) {
   labelRegions = computeRegions(qImageData, palette)
   const ctx = overlayCanvas.getContext('2d')
   ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
-  drawLabels(ctx, null)
+  renderLabels()
 }
 
 function buildColorMasks(imageData, palette) {
@@ -313,40 +365,54 @@ function computeRegions(imageData, palette) {
   return regions
 }
 
-const LABEL_LINE_H = 15
-const LABEL_PAD_X  = 10
-const LABEL_PAD_Y  = 6
-
-function drawLabels(ctx, hoveredHex) {
-  if (!labelRegions) return
-  ctx.save()
-  ctx.font = 'bold 11px system-ui, sans-serif'
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-
+function renderLabels() {
+  labelOverlay.innerHTML = ''
+  if (!labelRegions || !labelsVisible) return
+  const W = overlayCanvas.width
+  const H = overlayCanvas.height
   for (const { hex, cx, cy } of labelRegions) {
-    const lines = (hexToPaintLabel.get(hex) || '').split('\n')
-    const isHovered = hex === hoveredHex
+    const match = hexToMatch.get(hex)
+    if (!match) continue
 
-    const maxW = lines.reduce((m, l) => Math.max(m, ctx.measureText(l).width), 0)
-    const boxW = maxW + LABEL_PAD_X * 2
-    const boxH = lines.length * LABEL_LINE_H + LABEL_PAD_Y * 2
-    const x = Math.max(2, Math.min(overlayCanvas.width  - boxW - 2, cx - boxW / 2))
-    const y = Math.max(2, Math.min(overlayCanvas.height - boxH - 2, cy - boxH / 2))
+    const div = document.createElement('div')
+    div.className = 'label'
+    div.dataset.hex = hex
+    div.style.left = (cx / W * 100) + '%'
+    div.style.top  = (cy / H * 100) + '%'
 
-    ctx.fillStyle = isHovered ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.55)'
-    ctx.beginPath()
-    if (ctx.roundRect) ctx.roundRect(x, y, boxW, boxH, 4)
-    else               ctx.rect(x, y, boxW, boxH)
-    ctx.fill()
+    // Large color swatch
+    const swatch = document.createElement('div')
+    swatch.className = 'label-swatch'
+    swatch.style.background = hex
+    div.appendChild(swatch)
 
-    ctx.fillStyle = isHovered ? '#fff' : 'rgba(255,255,255,0.85)'
-    lines.forEach((line, i) => {
-      const lineY = y + LABEL_PAD_Y + LABEL_LINE_H * i + LABEL_LINE_H / 2
-      ctx.fillText(line, x + LABEL_PAD_X, lineY)
-    })
+    // Mix row: circle + abbreviation per paint
+    const row = document.createElement('div')
+    row.className = 'label-mixes'
+    const sorted = [...match.mix].sort((a, b) => b.ratio - a.ratio)
+    for (const m of sorted) {
+      const rgb = PAINT_RGB.get(m.name)
+      const item = document.createElement('span')
+      item.className = 'label-mix-item'
+      const dot = document.createElement('span')
+      dot.className = 'label-dot'
+      if (rgb) dot.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`
+      const txt = document.createElement('span')
+      txt.textContent = abbrev(m.name)
+      item.appendChild(dot)
+      item.appendChild(txt)
+      row.appendChild(item)
+    }
+    div.appendChild(row)
+
+    labelOverlay.appendChild(div)
   }
-  ctx.restore()
+}
+
+function setHoveredLabel(hex) {
+  labelOverlay.querySelectorAll('.label').forEach(el =>
+    el.classList.toggle('hovered', el.dataset.hex === hex)
+  )
 }
 
 // --- Render ---
@@ -429,12 +495,20 @@ function renderShoppingList(matches) {
   shoppingListEl.innerHTML = `
     <h4>Paint Shopping List</h4>
     <ul class="shop-list">
-      ${sorted.map(({ name, pct }) => `
-        <li>
+      ${sorted.map(({ name, pct }) => {
+        const rgb = PAINT_RGB.get(name)
+        const swatch = rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : '#888'
+        return `
+        <li class="shop-item">
+          <label class="shop-check-wrap">
+            <input type="checkbox" class="shop-checkbox">
+            <span class="shop-check-box"></span>
+          </label>
+          <span class="shop-swatch" style="background:${swatch}"></span>
           <span class="shop-name">${name}</span>
-          <span class="shop-bar-wrap"><span class="shop-bar" style="width:${pct}%"></span></span>
           <span class="shop-pct">${pct}%</span>
-        </li>`).join('')}
+        </li>`
+      }).join('')}
     </ul>`
 }
 
@@ -487,6 +561,9 @@ function groupEntries(entries, useSecondary) {
 }
 
 function renderSwatches(aggregated) {
+  // Preserve expanded state by group name before wiping the DOM
+  const expanded = new Set()
+  swatchesEl.querySelectorAll('.paint-group:not(.collapsed) .group-name').forEach(el => expanded.add(el.textContent))
   const dark = [], light = [], pure = []
   for (const entry of aggregated) {
     const dom = [...entry.match.mix].sort((a, b) => b.ratio - a.ratio)[0].name
@@ -503,10 +580,153 @@ function renderSwatches(aggregated) {
 
   swatchesEl.innerHTML = cols.map(({ label, entries, secondary }) =>
     `<div class="palette-col">
-      <div class="palette-col-header">${label}</div>
+      <div class="palette-col-header">
+        <span>${label}</span>
+        <span class="col-expand-btns">
+          <button class="col-expand-btn" data-action="expand">all</button>
+          <span class="col-expand-sep">/</span>
+          <button class="col-expand-btn" data-action="collapse">none</button>
+        </span>
+      </div>
       ${groupEntries(entries, secondary).map(buildAccordionGroup).join('')}
     </div>`
   ).join('')
+
+  // Restore expanded state (groups start collapsed by default in buildAccordionGroup)
+  if (expanded.size > 0) {
+    swatchesEl.querySelectorAll('.paint-group').forEach(g => {
+      const name = g.querySelector('.group-name')?.textContent
+      if (name && expanded.has(name)) g.classList.remove('collapsed')
+    })
+  }
+
+  swatchesEl.querySelectorAll('.palette-col-header').forEach(header => {
+    header.querySelectorAll('.col-expand-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation()
+        const col = header.closest('.palette-col')
+        const expand = btn.dataset.action === 'expand'
+        col.querySelectorAll('.paint-group').forEach(g => g.classList.toggle('collapsed', !expand))
+      })
+    })
+  })
+}
+
+// --- Export ---
+
+function exportToPdf() {
+  if (!cachedAggregated) return
+
+  const consolidatedData = consolidateMixes(cachedAggregated, Number(consolidateSlider.value))
+  const dark = [], light = [], pure = []
+  for (const entry of consolidatedData) {
+    const dom = [...entry.match.mix].sort((a, b) => b.ratio - a.ratio)[0].name
+    if (dom === 'Ivory Black')       dark.push(entry)
+    else if (dom === 'Titanium White') light.push(entry)
+    else                               pure.push(entry)
+  }
+
+  const cols = [
+    { label: 'Dark Tints',  entries: dark,  secondary: true  },
+    { label: 'Light Tints', entries: light, secondary: true  },
+    { label: 'Pigments',    entries: pure,  secondary: false },
+  ]
+
+  function colHtml({ label, entries, secondary }) {
+    const groups = groupEntries(entries, secondary)
+    if (!groups.length) return ''
+    return `
+      <div class="col">
+        <div class="col-header">${label}</div>
+        ${groups.map(({ name, paintRgb: [r,g,b], variants }) => `
+          <div class="group">
+            <div class="group-header">
+              <span class="group-swatch" style="background:rgb(${r},${g},${b})"></span>
+              <strong>${name}</strong>
+              <span class="count">${variants.length}</span>
+            </div>
+            ${variants.map(({ hex, match, hexes }) => `
+              <div class="swatch">
+                <span class="swatch-color" style="background:${hex}"></span>
+                <div class="recipe">
+                  ${[...match.mix].sort((a,b) => b.ratio - a.ratio).map(m => {
+                    const rgb = PAINT_RGB.get(m.name)
+                    const dot = rgb ? `<span class="dot" style="background:rgb(${rgb[0]},${rgb[1]},${rgb[2]})"></span>` : ''
+                    return `<div class="mix-line">${dot}<span class="ratio">${String(m.ratio).padStart(2,'0')}</span> ${m.name}</div>`
+                  }).join('')}
+                </div>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>`
+  }
+
+  // Shopping list
+  const totals = new Map()
+  for (const { coverage, match } of cachedAggregated) {
+    for (const m of match.mix) {
+      totals.set(m.name, (totals.get(m.name) || 0) + coverage * (m.ratio / 100))
+    }
+  }
+  const sum = [...totals.values()].reduce((a, b) => a + b, 0)
+  const shopItems = [...totals.entries()]
+    .map(([name, val]) => ({ name, pct: Math.round((val / sum) * 100) }))
+    .sort((a, b) => b.pct - a.pct)
+
+  const shopHtml = `
+    <div class="shop">
+      <div class="col-header">Paint Shopping List</div>
+      ${shopItems.map(({ name, pct }) => `
+        <div class="shop-row">
+          <span class="shop-name">${name}</span>
+          <span class="bar-wrap"><span class="bar" style="width:${pct}%"></span></span>
+          <span class="shop-pct">${pct}%</span>
+        </div>`).join('')}
+    </div>`
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pigment — Paint Recipe Export</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+  body { font-family: system-ui, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 24px }
+  h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.15em; color: #d97706; margin-bottom: 20px }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 28px }
+  .col-header { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #888; padding-bottom: 6px; border-bottom: 1px solid #ddd; margin-bottom: 8px }
+  .group { margin-bottom: 10px }
+  .group-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px }
+  .group-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15) }
+  .group-header strong { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; flex: 1 }
+  .count { font-size: 9px; color: #aaa }
+  .swatch { display: flex; gap: 8px; align-items: stretch; border: 1px solid #e5e5e5;
+    border-radius: 5px; padding: 4px 6px; margin-bottom: 3px; margin-left: 18px }
+  .swatch-color { width: 20px; flex-shrink: 0; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1) }
+  .recipe { flex: 1 }
+  .mix-line { display: flex; align-items: center; gap: 4px; line-height: 1.6 }
+  .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1) }
+  .ratio { font-weight: 700; color: #888; min-width: 20px }
+  .shop { margin-top: 4px }
+  .shop-row { display: grid; grid-template-columns: 160px 1fr 32px; align-items: center; gap: 8px; margin-bottom: 5px }
+  .shop-name { font-size: 11px }
+  .bar-wrap { background: #eee; border-radius: 2px; height: 4px; overflow: hidden }
+  .bar { display: block; height: 100%; background: #d97706; min-width: 2px }
+  .shop-pct { font-size: 10px; color: #888; text-align: right }
+  @media print { body { padding: 16px } }
+</style>
+</head>
+<body>
+<h1>PIGMENT</h1>
+<div class="grid">${cols.map(colHtml).join('')}</div>
+${shopHtml}
+<script>window.onload = () => window.print()<\/script>
+</body>
+</html>`
+
+  const w = window.open('', '_blank')
+  w.document.write(html)
+  w.document.close()
 }
 
 // --- UI helpers ---
@@ -543,7 +763,7 @@ function hideTooltip() {
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg
   statusEl.hidden = false
-  statusEl.className = 'status' + (isError ? ' status-error' : '')
+  statusEl.className = 'toast' + (isError ? ' toast-error' : '')
 }
 
 function showResults() {
@@ -555,9 +775,13 @@ function showResults() {
 function reset() {
   cachedImageData = cachedQuantizedData = colorMasks = labelRegions = null
   outlineMode = false
+  labelsVisible = true
   outlineBtn.classList.remove('active')
+  labelsBtn.classList.add('active')
   hexToPaintLabel = new Map()
   hexToMatch = new Map()
+  labelOverlay.innerHTML = ''
+  attributionEl.hidden = true
   hideTooltip()
   resultsEl.hidden = true
   inputSection.hidden = false
@@ -572,3 +796,6 @@ function scaleDims(w, h, max) {
 }
 
 function pct(v) { return (v * 100).toFixed(1) + '%' }
+
+// Auto-load default image
+loadAndProcess(DEFAULT_SRC, null, true)

@@ -1,8 +1,15 @@
 import express from 'express'
 import fetch from 'node-fetch'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
-const PORT = 3035
+const PORT = process.env.PORT || 3035
+
+// Serve built client in production
+const dist = join(__dirname, 'dist')
+app.use(express.static(dist))
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
@@ -45,4 +52,6 @@ app.get('/api/proxy', async (req, res) => {
   }
 })
 
-app.listen(PORT, () => console.log(`Pigment proxy server → http://localhost:${PORT}`))
+app.get('*', (req, res) => res.sendFile(join(dist, 'index.html')))
+
+app.listen(PORT, () => console.log(`Pigment → http://localhost:${PORT}`))
