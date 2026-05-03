@@ -1,7 +1,7 @@
 // Base acrylic paint palette with approximate masstone RGB values
 export const PAINTS = [
   { name: 'Titanium White',             rgb: [255, 255, 255] },
-  { name: 'Ivory Black',                rgb: [35,  30,  29 ] },
+  { name: "Payne's Grey",               rgb: [58,  75,  90 ] },
   { name: 'Burnt Umber',                rgb: [99,  57,  31 ] },
   { name: 'Raw Umber',                  rgb: [115, 90,  55 ] },
   { name: 'Yellow Ochre',               rgb: [200, 155, 30 ] },

@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.artiscreation.com)"
+      "WebFetch(domain:www.artiscreation.com)",
+      "Bash(python3 *)",
+      "Bash(sed -i 's|<svg id=\"pigment-logo\"|<svg id=\"pigment-logo\"|' /home/todd/Documents/pigment/client/public/pigment_logo.svg)",
+      "Bash(sed -i 's|  <!-- Paint strokes|  <rect width=\"1094.06\" height=\"209.17\" fill=\"#ffffff\"/>\\\\n  <!-- Paint strokes|' /home/todd/Documents/pigment/client/public/pigment_logo.svg)",
+      "Bash(sed -i 's|  <rect width=\"1094.06\" height=\"209.17\" fill=\"#ffffff\"/>\\\\n  ||' /home/todd/Documents/pigment/client/public/pigment_logo.svg)",
+      "Bash(sed -i '/<rect width=\"1094.06\"/d' /home/todd/Documents/pigment/client/public/pigment_logo.svg)",
+      "Bash(sed -i 's/fill=\"#000000\"/fill=\"#d97706\"/g' /home/todd/Documents/pigment/client/public/pigment_logo.svg)"
     ]
   }
 }

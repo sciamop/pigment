@@ -8,7 +8,7 @@ const PAINT_RGB = new Map(PAINTS.map(p => [p.name, p.rgb]))
 
 const SHORT_NAME = {
   'Titanium White':             'White',
-  'Ivory Black':                'Black',
+  "Payne's Grey":               "Payne's Grey",
   'Burnt Umber':                'Burnt Umber',
   'Raw Umber':                  'Raw Umber',
   'Yellow Ochre':               'Yellow Ochre',
@@ -22,7 +22,7 @@ const shortName = n => SHORT_NAME[n] || n
 
 const ABBREV = {
   'Titanium White':             'WH',
-  'Ivory Black':                'BK',
+  "Payne's Grey":               'PG',
   'Burnt Umber':                'BNTU',
   'Raw Umber':                  'RAWU',
   'Yellow Ochre':               'YOC',
@@ -567,7 +567,7 @@ function renderSwatches(aggregated) {
   const dark = [], light = [], pure = []
   for (const entry of aggregated) {
     const dom = [...entry.match.mix].sort((a, b) => b.ratio - a.ratio)[0].name
-    if (dom === 'Ivory Black')    dark.push(entry)
+    if (dom === "Payne's Grey")    dark.push(entry)
     else if (dom === 'Titanium White') light.push(entry)
     else                          pure.push(entry)
   }
@@ -621,7 +621,7 @@ function exportToPdf() {
   const dark = [], light = [], pure = []
   for (const entry of consolidatedData) {
     const dom = [...entry.match.mix].sort((a, b) => b.ratio - a.ratio)[0].name
-    if (dom === 'Ivory Black')       dark.push(entry)
+    if (dom === "Payne's Grey")       dark.push(entry)
     else if (dom === 'Titanium White') light.push(entry)
     else                               pure.push(entry)
   }
