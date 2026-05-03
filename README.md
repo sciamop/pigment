@@ -22,7 +22,7 @@ Recipes are derived from these ten colors:
 | Paint | Abbrev |
 |---|---|
 | Titanium White | WH |
-| Ivory Black | BK |
+| Paynes Gray | PG |
 | Burnt Umber | BNTU |
 | Raw Umber | RAWU |
 | Yellow Ochre | YOC |
